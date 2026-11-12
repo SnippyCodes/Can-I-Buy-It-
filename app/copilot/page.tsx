@@ -13,9 +13,13 @@ import {
 } from "@/components/copilot/types";
 import { PREVIOUS_CHAT_SESSIONS } from "@/components/copilot/data";
 
+import { ArtifactPanel, type ArtifactView } from "@/components/copilot/ArtifactPanel";
+
 export default function CopilotPage() {
   // Navigation & Layout State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [artifactOpen, setArtifactOpen] = useState(true);
+  const [artifactView, setArtifactView] = useState<ArtifactView>("charts");
 
   // Unified Chat & Session State
   const [sessions, setSessions] = useState<HistorySession[]>(PREVIOUS_CHAT_SESSIONS);
@@ -484,6 +488,8 @@ export default function CopilotPage() {
           onSelectAgent={setActiveAgentId}
           onClearChat={handleClearChat}
           hasMessages={messages.length > 0}
+          artifactOpen={artifactOpen}
+          onToggleArtifact={() => setArtifactOpen((prev) => !prev)}
         />
 
         {/* Center Stage: Centered Minimal Hero OR Message Stream */}
@@ -500,10 +506,21 @@ export default function CopilotPage() {
               isGenerating={isGenerating}
               onSend={handleSend}
               onOpenAttach={() => setShowSettings(true)}
+              artifactOpen={artifactOpen}
+              onOpenArtifact={() => setArtifactOpen(true)}
             />
           )}
         </div>
       </main>
+
+      {/* 3. Retractable Figma Artifact & Liquidity Canvas Panel */}
+      {artifactOpen && (
+        <ArtifactPanel
+          view={artifactView}
+          onViewChange={setArtifactView}
+          onClose={() => setArtifactOpen(false)}
+        />
+      )}
 
       {/* Settings Modal */}
       <SettingsModal

@@ -182,3 +182,51 @@ export const PREVIOUS_CHAT_SESSIONS: HistorySession[] = [
     ],
   },
 ];
+
+/* Canvas & Liquidity Artifact Data */
+export interface Artifact {
+  title: string;
+  meta: string;
+}
+
+export const canvasArtifact: Artifact = {
+  title: "Q3 Liquidity & Risk Canvas",
+  meta: "Cash, settlements, reserves and corridors",
+};
+
+export const BUFFER_M = 0.5;
+export const ACTUAL_THROUGH_DAY = 30;
+
+export const cashSeries = [
+  { day: 0, value: 1.85 },
+  { day: 10, value: 1.97 },
+  { day: 20, value: 2.18 },
+  { day: 30, value: 2.38 },
+  { day: 40, value: 2.29 },
+  { day: 50, value: 2.61 },
+  { day: 60, value: 2.89 },
+  { day: 70, value: 3.02 },
+  { day: 80, value: 3.24 },
+  { day: 90, value: 3.45 },
+];
+
+export const settlementWeeks = [
+  { week: "W1", inflow: 412, outflow: 230 },
+  { week: "W2", inflow: 468, outflow: 258 },
+  { week: "W3", inflow: 351, outflow: 257 },
+  { week: "W4", inflow: 489, outflow: 240 },
+];
+
+export const reserveTranches = [
+  { name: "Operating cash", amount: 1850, apy: "4.10%", liquidity: "Same day" },
+  { name: "Covenant buffer", amount: 500, apy: "4.65%", liquidity: "Restricted" },
+  { name: "Overnight repo", amount: 780, apy: "4.88%", liquidity: "Next day" },
+  { name: "FX collateral", amount: 320, apy: "3.75%", liquidity: "Intraday" },
+];
+
+export const corridors = [
+  { corridor: "US operating", net: 302400, coverage: "3.12×", status: "Verified" },
+  { corridor: "EMEA SEPA", net: -68500, coverage: "2.44×", status: "Review" },
+  { corridor: "Treasury repo", net: 350000, coverage: "4.05×", status: "Hedged" },
+  { corridor: "APAC clearing", net: 151400, coverage: "2.89×", status: "Verified" },
+];
