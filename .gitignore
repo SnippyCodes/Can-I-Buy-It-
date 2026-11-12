@@ -128,3 +128,4 @@ desktop.ini
 # Cloud Hosting & Deployments
 # ==========================================
 .vercel
+*.mp4

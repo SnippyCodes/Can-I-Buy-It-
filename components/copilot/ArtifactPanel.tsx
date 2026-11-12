@@ -20,7 +20,7 @@ interface TableSpec {
 }
 
 const usd = (value: number) =>
-  `${value < 0 ? "−" : "+"}$${Math.abs(value).toLocaleString("en-US")}`;
+  `${value < 0 ? "−" : "+"}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const reserveTotal = reserveTranches.reduce((sum, t) => sum + t.amount, 0);
 const netSettled = settlementWeeks.reduce((sum, w) => sum + w.inflow - w.outflow, 0);
@@ -34,8 +34,8 @@ const tables: Record<"cash" | "settlements" | "reserves" | "corridors", TableSpe
       .filter((p) => p.day % 30 === 0)
       .map((p) => [
         p.day === 0 ? "Today" : `Day ${p.day}`,
-        `$${p.value.toFixed(2)}M`,
-        `+$${(p.value - BUFFER_M).toFixed(2)}M`,
+        `$${p.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `+$${(p.value - BUFFER_M).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       ]),
   },
   settlements: {
@@ -43,24 +43,24 @@ const tables: Record<"cash" | "settlements" | "reserves" | "corridors", TableSpe
     headers: ["Week", "Inflow", "Outflow", "Net"],
     rows: settlementWeeks.map((w) => [
       w.week,
-      `$${w.inflow}K`,
-      `$${w.outflow}K`,
-      `+$${w.inflow - w.outflow}K`,
+      `$${w.inflow.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `$${w.outflow.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `${w.inflow - w.outflow >= 0 ? "+" : "−"}$${Math.abs(w.inflow - w.outflow).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     ]),
   },
   reserves: {
     title: "Reserve allocation",
-    headers: ["Tranche", "Balance", "APY", "Liquidity"],
+    headers: ["Tranche", "Balance", "APY / Rule", "Liquidity"],
     rows: reserveTranches.map((t) => [
       t.name,
-      `$${t.amount.toLocaleString("en-US")}K`,
+      `$${t.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       t.apy,
       t.liquidity,
     ]),
   },
   corridors: {
-    title: "Settlement corridors",
-    headers: ["Corridor", "Net", "Coverage", "Status"],
+    title: "Settlement channels",
+    headers: ["Category / Channel", "Net", "Coverage", "Status"],
     rows: corridors.map((c) => [c.corridor, usd(c.net), c.coverage, c.status]),
   },
 };
@@ -153,9 +153,9 @@ function BentoCell({
 }
 
 function CashChart() {
-  const maxValue = 4;
+  const maxValue = 10000;
   const x = (day: number) => (day / 90) * 100;
-  const y = (value: number) => 100 - (value / maxValue) * 100;
+  const y = (value: number) => Math.max(0, Math.min(100, 100 - (value / maxValue) * 100));
   const toPoints = (points: typeof cashSeries) =>
     points.map((p) => `${x(p.day)},${y(p.value)}`).join(" ");
   const split = cashSeries.findIndex((p) => p.day === ACTUAL_THROUGH_DAY);
@@ -164,8 +164,8 @@ function CashChart() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 gap-2">
-        <div className="-my-1.5 flex w-[30px] shrink-0 flex-col justify-between text-right text-[10px] tabular-nums text-zinc-600">
-          {["$4M", "$3M", "$2M", "$1M", "$0"].map((l) => (
+        <div className="-my-1.5 flex w-[36px] shrink-0 flex-col justify-between text-right text-[10px] tabular-nums text-zinc-500 font-mono">
+          {["$10K", "$7.5K", "$5.0K", "$2.5K", "$0"].map((l) => (
             <span key={l}>{l}</span>
           ))}
         </div>
@@ -175,9 +175,9 @@ function CashChart() {
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
             role="img"
-            aria-label="Cash balance rises from $1.85M today to a projected $3.45M at day 90"
+            aria-label="Cash balance trajectory from $3,485 to $8,974 with $500 safety floor"
           >
-            {[1, 2, 3].map((v) => (
+            {[2500, 5000, 7500].map((v) => (
               <line
                 key={v}
                 x1="0"
@@ -201,7 +201,7 @@ function CashChart() {
               x2="100"
               y1={y(BUFFER_M)}
               y2={y(BUFFER_M)}
-              stroke="#71717a"
+              stroke="#10b981"
               strokeDasharray="3 3"
               vectorEffect="non-scaling-stroke"
             />
@@ -223,27 +223,27 @@ function CashChart() {
             />
           </svg>
           <span
-            className="absolute right-0 text-[10px] text-zinc-500"
+            className="absolute right-0 text-[10px] text-emerald-400 font-mono"
             style={{ top: `calc(${y(BUFFER_M)}% - 16px)` }}
           >
-            Covenant buffer $0.50M
+            Sacred floor $500.00
           </span>
         </div>
       </div>
-      <div className="ml-[38px] mt-2 flex justify-between text-[10px] text-zinc-600">
+      <div className="ml-[38px] mt-2 flex justify-between text-[10px] text-zinc-500 font-mono">
         <span>Today</span>
         <span>30d</span>
         <span>60d</span>
         <span>90d</span>
       </div>
-      <div className="mt-3 flex gap-4 text-[11px] text-zinc-500">
+      <div className="mt-3 flex gap-4 text-[11px] text-zinc-400">
         <span className="flex items-center gap-1.5">
           <i className="h-px w-3 bg-zinc-50" />
-          Actual
+          Actual Ledger
         </span>
         <span className="flex items-center gap-1.5">
           <i className="w-3 border-t border-dashed border-zinc-400" />
-          Projected
+          Projected Trajectory
         </span>
       </div>
     </div>
@@ -251,7 +251,7 @@ function CashChart() {
 }
 
 function SettlementChart() {
-  const max = 500;
+  const max = 2500;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
@@ -262,32 +262,34 @@ function SettlementChart() {
         {settlementWeeks.map((w) => (
           <div key={w.week} className="flex h-full flex-1 items-end justify-center gap-1">
             <div
-              className="w-4 rounded-t-[3px] bg-zinc-200"
-              style={{ height: `${(w.inflow / max) * 100}%` }}
+              className="w-4 rounded-t-[3px] bg-emerald-400"
+              style={{ height: `${Math.max(4, (w.inflow / max) * 100)}%` }}
             />
             <div
-              className="w-4 rounded-t-[3px] bg-zinc-600"
-              style={{ height: `${(w.outflow / max) * 100}%` }}
+              className="w-4 rounded-t-[3px] bg-rose-500/80"
+              style={{ height: `${Math.max(4, (w.outflow / max) * 100)}%` }}
             />
           </div>
         ))}
       </div>
       <div className="flex gap-4 px-1 pt-2">
         {settlementWeeks.map((w) => (
-          <div key={w.week} className="flex-1 text-center">
-            <p className="text-[10px] text-zinc-600">{w.week}</p>
-            <p className="text-[11px] tabular-nums text-zinc-300">+${w.inflow - w.outflow}K</p>
+          <div key={w.week} className="flex-1 text-center font-mono">
+            <p className="text-[10px] text-zinc-500">{w.week}</p>
+            <p className={`text-[11px] tabular-nums ${w.inflow - w.outflow >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {w.inflow - w.outflow >= 0 ? "+" : "−"}${Math.abs(w.inflow - w.outflow).toLocaleString()}
+            </p>
           </div>
         ))}
       </div>
-      <div className="mt-3 flex gap-4 text-[11px] text-zinc-500">
+      <div className="mt-3 flex gap-4 text-[11px] text-zinc-400">
         <span className="flex items-center gap-1.5">
-          <i className="size-2 rounded-[2px] bg-zinc-200" />
-          Inflow
+          <i className="size-2 rounded-[2px] bg-emerald-400" />
+          Inflow (Payroll)
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="size-2 rounded-[2px] bg-zinc-600" />
-          Outflow
+          <i className="size-2 rounded-[2px] bg-rose-500/80" />
+          Outflow (Bills/Living)
         </span>
       </div>
     </div>
@@ -295,7 +297,7 @@ function SettlementChart() {
 }
 
 function ReserveChart() {
-  const shades = ["bg-zinc-100", "bg-zinc-400", "bg-zinc-600", "bg-zinc-700"];
+  const shades = ["bg-emerald-400", "bg-cyan-400", "bg-amber-400", "bg-indigo-400"];
   return (
     <div>
       <div
@@ -319,8 +321,10 @@ function ReserveChart() {
           >
             <i className={`size-2 shrink-0 rounded-[2px] ${shades[i]}`} />
             <span className="flex-1 text-zinc-300">{t.name}</span>
-            <span className="text-zinc-500">{((t.amount / reserveTotal) * 100).toFixed(1)}%</span>
-            <span className="w-16 text-right text-zinc-100">${(t.amount / 1000).toFixed(2)}M</span>
+            <span className="text-zinc-500 font-mono">{((t.amount / reserveTotal) * 100).toFixed(0)}%</span>
+            <span className="w-20 text-right font-mono font-medium text-zinc-100">
+              ${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </li>
         ))}
       </ul>
@@ -355,6 +359,10 @@ export function ArtifactPanel({ view, onViewChange, onClose }: ArtifactPanelProp
   }
 
   const charts = view === "charts";
+
+  const latestCash = cashSeries[cashSeries.length - 1].value;
+  const todayCash = cashSeries[0].value;
+  const cashGrowth = (((latestCash - todayCash) / todayCash) * 100).toFixed(1);
 
   return (
     <section
@@ -411,31 +419,33 @@ export function ArtifactPanel({ view, onViewChange, onClose }: ArtifactPanelProp
       <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3 p-3 overflow-hidden">
         <BentoCell
           label="Cash balance · 90 days"
-          value="$3.45M"
-          caption="+18.4% QoQ"
+          value={`$${todayCash.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          caption={`+${cashGrowth}% 90D Trajectory`}
           captionTone="gain"
         >
           {charts ? <CashChart /> : <DataTable spec={tables.cash} />}
         </BentoCell>
         <BentoCell
           label="Net settlements · 4 weeks"
-          value={`+$${netSettled}K`}
+          value={`${netSettled >= 0 ? "+" : "−"}$${Math.abs(netSettled).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           caption="Inflow vs. outflow"
+          captionTone="gain"
         >
           {charts ? <SettlementChart /> : <DataTable spec={tables.settlements} />}
         </BentoCell>
         <BentoCell
           label="Reserve allocation"
-          value={`$${(reserveTotal / 1000).toFixed(2)}M`}
-          caption="4.42% weighted APY"
+          value={`$${reserveTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          caption="$500.00 Floor Protected"
+          captionTone="gain"
         >
           {charts ? <ReserveChart /> : <DataTable spec={tables.reserves} />}
         </BentoCell>
         <BentoCell
           label="Settlement corridors"
-          value={usd(corridorNet)}
+          value={`${corridorNet >= 0 ? "+" : "−"}$${Math.abs(corridorNet).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           caption="Protected Reserve Intact"
-          captionTone="caution"
+          captionTone="gain"
         >
           <DataTable spec={tables.corridors} />
         </BentoCell>
