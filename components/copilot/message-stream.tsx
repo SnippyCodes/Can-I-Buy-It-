@@ -177,7 +177,7 @@ export function CopilotMessageStream({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-950">
       {/* 1. Scrollable Message Feed */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-4 pt-6 pb-28 space-y-6 max-w-3xl mx-auto w-full scrollbar-thin">
         {messages.length === 0 ? (
           <div className="flex flex-col items-start gap-4 pt-12 pb-6">
             <div>
@@ -272,6 +272,9 @@ export function CopilotMessageStream({
                           card={msg.actionCard}
                           onAuthorizeOrder={(orderId, amount) => {
                             onSend(`Authorize PayPal sandbox capture for order #${orderId} ($${amount})`);
+                          }}
+                          onSendInvoice={(invoiceId, email, amount) => {
+                            onSend(`Confirmed dispatch of PayPal Invoice #${invoiceId} to ${email} for $${amount.toFixed(2)}.`);
                           }}
                         />
                       </div>

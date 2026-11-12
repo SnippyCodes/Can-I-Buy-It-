@@ -21,8 +21,8 @@ type Method = "full" | "payIn4";
 type Checkout =
   | { status: "IDLE" }
   | { status: "INITIALIZING_ORDER" }
-  | { status: "AWAITING_APPROVAL"; orderId: string; approveUrl?: string }
-  | { status: "CAPTURING"; orderId: string }
+  | { status: "AWAITING_APPROVAL"; orderId: string; approveUrl?: string; error?: string }
+  | { status: "CAPTURING"; orderId: string; approveUrl?: string }
   | { status: "ORDER_AUTHORIZED"; orderId: string; captureId?: string };
 
 function sandboxOrderId() {
@@ -89,24 +89,42 @@ export function GuardianCheckout({
   }
 
   async function approve(orderId: string, approveUrl?: string) {
-    setCheckout({ status: "CAPTURING", orderId });
+    setCheckout({ status: "CAPTURING", orderId, approveUrl });
     try {
-      if (approveUrl && typeof window !== "undefined") {
-        window.open(approveUrl, "paypal_sandbox_approval", "width=520,height=620");
-      }
       const res = await fetch("/api/paypal/capture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorText = data.error || `HTTP ${res.status}`;
+        const isNotApproved =
+          errorText.includes("ORDER_NOT_APPROVED") ||
+          errorText.includes("422") ||
+          errorText.includes("INSTRUMENT_DECLINED");
+        setCheckout({
+          status: "AWAITING_APPROVAL",
+          orderId,
+          approveUrl,
+          error: isNotApproved
+            ? "Payer approval required: Please click 'Authorize on PayPal Sandbox', log into sandbox buyer account, and click 'Agree and Pay' before capturing."
+            : `PayPal Capture notice: ${errorText}`,
+        });
+        return;
+      }
       setCheckout({
         status: "ORDER_AUTHORIZED",
         orderId,
         captureId: data.captureId || data.id,
       });
-    } catch {
-      setCheckout({ status: "ORDER_AUTHORIZED", orderId });
+    } catch (err: unknown) {
+      setCheckout({
+        status: "AWAITING_APPROVAL",
+        orderId,
+        approveUrl,
+        error: err instanceof Error ? err.message : "Capture request failed",
+      });
     }
   }
 
@@ -307,31 +325,42 @@ export function GuardianCheckout({
                 Waiting for your approval
               </p>
               <p className="mt-1.5 text-[12px] leading-[1.55] text-zinc-400">
-                Order <span className="tabular-nums text-zinc-200">#{checkout.orderId}</span> is staged
+                Order <span className="tabular-nums font-mono text-zinc-200">#{checkout.orderId}</span> is staged
                 for {itemName}. Nothing has been charged.
               </p>
               {"approveUrl" in checkout && checkout.approveUrl && (
-                <div className="mt-2 pt-2 border-t border-caution/15">
+                <div className="mt-2.5 pt-2 border-t border-caution/15 flex flex-col gap-2">
                   <a
                     href={checkout.approveUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-sky-400 hover:text-sky-300 hover:underline"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-300 transition"
                   >
-                    <span>Sign in to sandbox.paypal.com to authorize</span>
+                    <span>1. Authorize on PayPal Sandbox</span>
                     <span aria-hidden="true">&rarr;</span>
                   </a>
+                  <p className="text-[11px] text-zinc-400">
+                    Log in with your Sandbox Buyer account and click &quot;Agree and Pay&quot;.
+                  </p>
                 </div>
               )}
             </div>
+
+            {"error" in checkout && checkout.error && (
+              <div className="rounded-[10px] border border-rose-500/30 bg-rose-950/20 p-2.5 text-xs text-rose-300">
+                <p className="font-semibold text-rose-200">Action Required</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">{checkout.error}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <button
                 type="button"
                 onClick={() => approve(checkout.orderId, "approveUrl" in checkout ? checkout.approveUrl : undefined)}
                 disabled={busy}
-                className={`${btn.primary} h-10 text-[13px]`}
+                className={`${btn.primary} h-10 text-[13px] bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500`}
               >
-                {busy ? "Capturing in Sandbox…" : `Approve ${usd(chargeToday, { cents: true })}`}
+                {busy ? "Capturing in Sandbox…" : `2. Finalize & Settle ${usd(chargeToday, { cents: true })}`}
               </button>
               <button
                 type="button"

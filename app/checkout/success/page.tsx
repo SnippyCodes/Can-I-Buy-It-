@@ -30,9 +30,16 @@ function SuccessContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId: token }),
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Capture call failed");
-        return res.json();
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          // If order was already captured on PayPal Sandbox, treat as success
+          if (data.error && (data.error.includes("ORDER_ALREADY_CAPTURED") || data.error.includes("COMPLETED"))) {
+            return { id: token, status: "COMPLETED" };
+          }
+          throw new Error(data.error || "Capture call failed");
+        }
+        return data;
       })
       .then((data) => {
         setOrderData(data);
@@ -40,8 +47,7 @@ function SuccessContent() {
       })
       .catch((err) => {
         console.warn("Capture info:", err);
-        // If it was already captured or is sandbox mock
-        setSuccess(true);
+        setError(err.message || "Could not confirm PayPal payment capture.");
       })
       .finally(() => {
         setLoading(false);

@@ -85,7 +85,7 @@ export async function getPayPalAccessToken(scope?: string): Promise<string> {
         },
         body: bodyParams.toString(),
       },
-      6000
+      15000
     );
 
     if (!res.ok) {
@@ -272,6 +272,12 @@ export async function capturePayPalOrder(orderId: string): Promise<{
 
     if (!res.ok) {
       const errorText = await res.text();
+      if (errorText.includes("ORDER_ALREADY_CAPTURED")) {
+        return {
+          id: orderId,
+          status: "COMPLETED",
+        };
+      }
       console.error("PayPal Capture failed (HTTP " + res.status + "):", errorText);
       throw new Error(`PayPal Capture API error (${res.status}): ${errorText}`);
     }
@@ -346,7 +352,7 @@ export async function createAndSendInvoice(params: {
             "Content-Type": "application/json",
           },
         },
-        4000
+        12000
       );
       if (numRes.ok) {
         const numData = await numRes.json();
@@ -397,7 +403,7 @@ export async function createAndSendInvoice(params: {
         },
         body: JSON.stringify(payload),
       },
-      6000
+      15000
     );
 
     if (!draftRes.ok) {
@@ -438,7 +444,7 @@ export async function createAndSendInvoice(params: {
             },
             body: JSON.stringify({ send_to_recipient: true }),
           },
-          6000
+          15000
         );
 
         if (sendRes.ok || sendRes.status === 202) {
@@ -480,4 +486,95 @@ export async function createAndSendInvoice(params: {
       isMock: true,
     };
   }
+}
+
+/**
+ * Dispatch an existing draft PayPal invoice to recipient.
+ */
+export async function sendExistingInvoice(invoiceId: string): Promise<{
+  invoiceId: string;
+  status: string;
+  paymentUrl: string;
+}> {
+  const token = await getPayPalAccessToken("https://uri.paypal.com/services/invoicing");
+  const requestId = crypto.randomUUID();
+
+  const res = await fetchWithTimeout(
+    `${PAYPAL_BASE_URL}/v2/invoicing/invoices/${invoiceId}/send`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": requestId,
+      },
+      body: JSON.stringify({ send_to_recipient: true }),
+    },
+    15000
+  );
+
+  if (!res.ok && res.status !== 202) {
+    const text = await res.text();
+    throw new Error(`Failed to send invoice ${invoiceId} (HTTP ${res.status}): ${text}`);
+  }
+
+  return {
+    invoiceId,
+    status: "SENT",
+    paymentUrl: `https://www.sandbox.paypal.com/invoice/p/#${invoiceId}`,
+  };
+}
+
+/**
+ * Record payment for a PayPal invoice in Sandbox.
+ * Immediately transitions invoice to MARKED_AS_PAID so it reflects in Activity.
+ */
+export async function recordInvoicePayment(params: {
+  invoiceId: string;
+  amount: number;
+  currency?: string;
+  note?: string;
+}): Promise<{
+  paymentId: string;
+  status: string;
+  invoiceId: string;
+}> {
+  const { invoiceId, amount, currency = "USD", note = "Payment verified via PayPal Guardian" } = params;
+  const token = await getPayPalAccessToken("https://uri.paypal.com/services/invoicing");
+  const requestId = crypto.randomUUID();
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const res = await fetchWithTimeout(
+    `${PAYPAL_BASE_URL}/v2/invoicing/invoices/${invoiceId}/payments`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": requestId,
+      },
+      body: JSON.stringify({
+        method: "PAYPAL",
+        payment_date: todayStr,
+        amount: {
+          currency_code: currency,
+          value: amount.toFixed(2),
+        },
+        note,
+      }),
+    },
+    15000
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to record invoice payment (HTTP ${res.status}): ${text}`);
+  }
+
+  const data = await res.json().catch(() => ({}));
+  return {
+    paymentId: data.payment_id || `PAY-${Date.now()}`,
+    status: "MARKED_AS_PAID",
+    invoiceId,
+  };
 }

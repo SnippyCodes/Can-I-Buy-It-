@@ -1,0 +1,49 @@
+# PayPal Guardian Copilot — Devpost & Social Launch Copy
+
+## 🏆 Devpost Submission Copy (Overview & Pitch)
+
+### Tagline
+Autonomous financial safety copilot that guards liquidity floors, evaluates purchases via Channel3, and automates PayPal REST v2 orders and invoicing with human-in-the-loop protection.
+
+### Elevator Pitch
+Every year, consumers and businesses incur billions in overdraft fees and liquidity crunches due to blind, single-click spending. PayPal Guardian Copilot transforms traditional checkout into an autonomous financial co-pilot. Powered by a multi-agent swarm (Trader, Auditor, Arbiter) running deterministic invariant logic, Guardian evaluates 25,000+ merchants via Channel3, projects 90-day cash flow against a sacred $500 liquidity reserve floor, suggests Pay in 4 options when full payment would breach reserves, and securely executes PayPal REST v2 Orders and Invoices with cryptographic idempotency and Human-in-the-Loop approval gates.
+
+### How It Works
+1. **Universal Multi-Merchant PDP (Channel3)**: Browse real-time products across 25,000+ merchants with live price-history charts and multi-seller offer comparisons.
+2. **Financial Invariant Engine**: Before every stage or checkout, Guardian projects cash flow across a 90-day deterministic horizon. If paying in full violates the $500 reserve floor, Guardian automatically gates the transaction and suggests an interest-free PayPal Pay in 4 installment plan.
+3. **Copilot Multi-Agent Swarm**: Natural language interface allowing users to inspect cash reserves, analyze vendor quotes, or dispatch PayPal REST v2 invoices. A 3-agent consensus debate halts risky debits and presents clean Bento action cards.
+4. **Live PayPal REST v2 Sandbox Settlement**: Direct OAuth2 integration with PayPal Sandbox endpoints (`/v2/checkout/orders` and `/v2/invoicing/invoices`), supporting live capture and invoice settlement.
+5. **Real-Time Telemetry & AG Grid Ledger**: High-performance AG Grid financial ledger tracking all completed transactions, recurring SaaS commitments, and dynamic liquidity projections.
+
+---
+
+## 🐦 X / Twitter Launch Post
+
+Introducing PayPal Guardian Copilot 🛡️✨
+
+Autonomous transaction safety for PayPal commerce:
+• Multi-agent consensus swarm (Trader ↔ Auditor ↔ Arbiter)
+• Real-time Channel3 catalog across 25,000+ stores
+• Sacred $500 liquidity reserve floor preservation
+• PayPal REST v2 Orders & Invoicing automation
+• AG Grid financial telemetry & cash-flow curves
+
+Built for the PayPal Developer Challenge. Watch the walkthrough:
+[Link to Video / Demo] #PayPal #AI #Fintech #AgenticAI
+
+---
+
+## 💼 LinkedIn Announcement
+
+Excited to share **PayPal Guardian Copilot**, our submission for the PayPal Developer Challenge! 🚀
+
+Traditional checkout buttons are passive: they process payments regardless of whether the purchase will push your bank balance into an overdraft two weeks from now. 
+
+We built Guardian Copilot to rethink the commerce flow from the ground up:
+🔹 **Channel3 Universal Commerce**: Live product discovery, merchant offer comparison, and price history tracking across 25,000+ retailers.
+🔹 **Deterministic Invariant Engine**: A strict financial safety model that simulates a 90-day cash-flow curve before every purchase, safeguarding a non-negotiable $500 liquidity buffer.
+🔹 **Autonomous Multi-Agent Swarm**: LangGraph-powered consensus engine with dedicated Trader, Auditor, and Arbiter agents who debate solvency risk before surfacing actionable PayPal REST v2 cards.
+🔹 **Human-in-the-Loop PayPal Settlement**: Complete OAuth2 client credentials integration with PayPal Sandbox, supporting instant Pay in 4 scheduling, order capture, and invoice generation.
+🔹 **Telemetry Canvas**: AG Grid ledger with exportable CSV auditing, recurring outflow tracking, and real-time buffer meters.
+
+Check out the demo video and explore the codebase on GitHub!

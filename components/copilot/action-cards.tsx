@@ -49,6 +49,303 @@ interface ActionCardProps {
   onSendInvoice?: (invoiceId: string, email: string, amount: number) => void;
 }
 
+function InvoiceBentoCard({
+  data,
+  onSendInvoice,
+  onRejectOrder,
+}: {
+  data: any;
+  onSendInvoice?: (invoiceId: string, email: string, amount: number) => void;
+  onRejectOrder?: (invoiceId: string) => void;
+}) {
+  const [status, setStatus] = useState<"DRAFT" | "DISPATCHING" | "SENT" | "RECORDING_PAYMENT" | "PAID" | "ERROR">("DRAFT");
+  const [liveInvoiceId, setLiveInvoiceId] = useState<string>(data.invoiceId || "");
+  const [liveUrl, setLiveUrl] = useState<string>(
+    data.paymentUrl || (data.invoiceId ? `https://www.sandbox.paypal.com/invoice/p/#${data.invoiceId}` : "")
+  );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSend = async () => {
+    setStatus("DISPATCHING");
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/paypal/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: data.invoiceId && data.invoiceId.startsWith("INV2-") ? "send" : undefined,
+          invoiceId: data.invoiceId,
+          recipientEmail: data.recipientEmail,
+          amount: data.amount,
+          description: data.description,
+          currency: data.currency || "USD",
+        }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Failed to dispatch invoice (HTTP ${res.status})`);
+      }
+      const invId = resData.invoiceId || data.invoiceId;
+      setLiveInvoiceId(invId);
+      setLiveUrl(resData.paymentUrl || `https://www.sandbox.paypal.com/invoice/p/#${invId}`);
+      setStatus("SENT");
+      if (onSendInvoice) {
+        onSendInvoice(invId, data.recipientEmail, data.amount);
+      }
+    } catch (err: any) {
+      setStatus("ERROR");
+      setErrorMsg(err.message || "Failed to dispatch invoice to PayPal.");
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    setStatus("RECORDING_PAYMENT");
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/paypal/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "pay",
+          invoiceId: liveInvoiceId || data.invoiceId,
+          amount: data.amount,
+          currency: data.currency || "USD",
+          note: "Settled via PayPal Guardian Autonomous Commerce",
+        }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Payment recording failed (HTTP ${res.status})`);
+      }
+      setStatus("PAID");
+    } catch (err: any) {
+      setStatus("ERROR");
+      setErrorMsg(err.message || "Failed to record payment in PayPal Sandbox.");
+    }
+  };
+
+  return (
+    <div className="w-full max-w-xl mx-auto my-3 rounded-2xl border border-zinc-800/80 bg-[#0A0A0E] text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden transition-all duration-200">
+      {/* Bento Artifact Header */}
+      <div className="px-5 py-3.5 border-b border-zinc-800/80 bg-gradient-to-r from-zinc-900/80 via-zinc-900/50 to-zinc-950 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/25 text-teal-400 shadow-sm">
+            <Receipt className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold text-zinc-100 tracking-tight">
+                {status === "PAID"
+                  ? "Settled PayPal Invoice"
+                  : status === "SENT"
+                  ? "Sent PayPal Invoice"
+                  : "Draft PayPal Invoice"}
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[9.5px] font-mono bg-teal-500/10 text-teal-400 border border-teal-500/25">
+                REST v2 Invoicing
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+              Incoming receivable dispatch • Non-debiting transaction
+            </p>
+          </div>
+        </div>
+
+        {status === "PAID" ? (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            SETTLED &amp; PAID
+          </span>
+        ) : status === "SENT" ? (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            SENT_TO_CLIENT
+          </span>
+        ) : (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            APPROVAL_REQUIRED
+          </span>
+        )}
+      </div>
+
+      {/* Bento Grid Body */}
+      <div className="p-4 sm:p-5 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* Bento Tile 1: Recipient Counterparty */}
+          <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Recipient Email</span>
+              <div className="p-1 rounded-md bg-zinc-800/80 text-teal-400">
+                <Mail className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs sm:text-[13px] font-mono font-semibold text-zinc-100 truncate">
+                {data.recipientEmail}
+              </div>
+              <p className="text-[10px] text-zinc-400 mt-0.5">Billing counterparty destination</p>
+            </div>
+          </div>
+
+          {/* Bento Tile 2: Service Description */}
+          <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Service Line Item</span>
+              <div className="p-1 rounded-md bg-zinc-800/80 text-zinc-300">
+                <FileText className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs sm:text-[13px] font-medium text-zinc-100 truncate">
+                {data.description}
+              </div>
+              <p className="text-[10px] text-zinc-400 mt-0.5">Scope of deliverable / invoice line</p>
+            </div>
+          </div>
+
+          {/* Bento Tile 3: Net Receivable Credit */}
+          <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 via-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">Receivable Credit</span>
+              <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <ArrowDownLeft className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
+                +${data.amount.toFixed(2)}{" "}
+                <span className="text-xs text-emerald-300/80 font-normal">{data.currency || "USD"}</span>
+              </div>
+              <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/25">
+                Incoming Cash Flow
+              </span>
+            </div>
+          </div>
+
+          {/* Bento Tile 4: Invariant Safety Guard */}
+          <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Safety Buffer Floor</span>
+              <div className="p-1 rounded-md bg-zinc-800/80 text-emerald-400">
+                <ShieldCheck className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>$500.00 Floor Preserved</span>
+              </div>
+              <p className="text-[10.5px] text-zinc-400 mt-0.5">
+                Incoming receivable — user balance untouched
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/40 text-rose-300 text-xs">
+            <p className="font-semibold text-rose-200">Notice:</p>
+            <p className="mt-0.5 text-[11px] text-zinc-400">{errorMsg}</p>
+          </div>
+        )}
+
+        {/* Live PayPal Sandbox Link if sent or paid */}
+        {liveUrl && (
+          <div className="p-2.5 rounded-xl bg-sky-950/20 border border-sky-500/30 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Receipt className="w-3.5 h-3.5 text-sky-400" />
+              <span className="text-zinc-300 text-[11px]">Invoice ID:</span>
+              <span className="font-mono font-semibold text-sky-300 text-[11px]">{liveInvoiceId || data.invoiceId}</span>
+            </div>
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-400 hover:text-sky-300 underline"
+            >
+              <span>View on PayPal Sandbox</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+
+        {/* Bento Actions Bar */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+          {status === "DRAFT" || status === "DISPATCHING" || status === "ERROR" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={status === "DISPATCHING"}
+                className="w-full sm:flex-1 h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-emerald-950/40 disabled:opacity-60 cursor-pointer"
+              >
+                {status === "DISPATCHING" ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Dispatching via PayPal REST v2...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Send PayPal Invoice</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRejectOrder) onRejectOrder(data.invoiceId || "draft-inv");
+                }}
+                disabled={status === "DISPATCHING"}
+                className="w-full sm:w-auto h-10 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-medium transition active:scale-95 cursor-pointer"
+              >
+                Discard
+              </button>
+            </>
+          ) : status === "SENT" || status === "RECORDING_PAYMENT" ? (
+            <div className="w-full flex flex-col sm:flex-row items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRecordPayment}
+                disabled={status === "RECORDING_PAYMENT"}
+                className="flex-1 w-full h-10 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-sky-950/40 disabled:opacity-60 cursor-pointer"
+              >
+                {status === "RECORDING_PAYMENT" ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Recording payment in Sandbox...</span>
+                  </>
+                ) : (
+                  <>
+                    <Receipt className="w-4 h-4" />
+                    <span>Mark Paid on sandbox.paypal (Record Settlement)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="w-full p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Settlement Completed &amp; Reflected on PayPal Sandbox Activity!
+              </span>
+              <a
+                href="https://sandbox.paypal.com"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold underline text-sky-300 hover:text-sky-200"
+              >
+                Open Activity &rarr;
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ActionCardRenderer({
   card,
   onAuthorizeOrder,
@@ -242,134 +539,12 @@ export function ActionCardRenderer({
     card.invoiceApprovalData
   ) {
     if (!card.invoiceApprovalData) return null;
-    const data = card.invoiceApprovalData;
-
     return (
-      <div className="w-full max-w-xl mx-auto my-3 rounded-2xl border border-zinc-800/80 bg-[#0A0A0E] text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden transition-all duration-200">
-        {/* Bento Artifact Header */}
-        <div className="px-5 py-3.5 border-b border-zinc-800/80 bg-gradient-to-r from-zinc-900/80 via-zinc-900/50 to-zinc-950 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/25 text-teal-400 shadow-sm">
-              <Receipt className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-zinc-100 tracking-tight">Draft PayPal Invoice</h3>
-                <span className="px-2 py-0.5 rounded text-[9.5px] font-mono bg-teal-500/10 text-teal-400 border border-teal-500/25">
-                  REST v2 Invoicing
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                Incoming receivable dispatch • Non-debiting transaction
-              </p>
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            APPROVAL_REQUIRED
-          </span>
-        </div>
-
-        {/* Bento Grid Body */}
-        <div className="p-4 sm:p-5 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {/* Bento Tile 1: Recipient Counterparty */}
-            <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-zinc-400 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Recipient Email</span>
-                <div className="p-1 rounded-md bg-zinc-800/80 text-teal-400">
-                  <Mail className="w-3.5 h-3.5" />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs sm:text-[13px] font-mono font-semibold text-zinc-100 truncate">
-                  {data.recipientEmail}
-                </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Billing counterparty destination</p>
-              </div>
-            </div>
-
-            {/* Bento Tile 2: Service Description */}
-            <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-zinc-400 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Service Line Item</span>
-                <div className="p-1 rounded-md bg-zinc-800/80 text-zinc-300">
-                  <FileText className="w-3.5 h-3.5" />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs sm:text-[13px] font-medium text-zinc-100 truncate">
-                  {data.description}
-                </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Scope of deliverable / invoice line</p>
-              </div>
-            </div>
-
-            {/* Bento Tile 3: Net Receivable Credit (Highlighted Bento Cell) */}
-            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 via-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-zinc-400 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">Receivable Credit</span>
-                <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <ArrowDownLeft className="w-3.5 h-3.5" />
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
-                  +${data.amount.toFixed(2)}{" "}
-                  <span className="text-xs text-emerald-300/80 font-normal">{data.currency || "USD"}</span>
-                </div>
-                <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/25">
-                  Incoming Cash Flow
-                </span>
-              </div>
-            </div>
-
-            {/* Bento Tile 4: Invariant Safety Guard */}
-            <div className="p-3.5 rounded-xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/60 to-zinc-900/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between text-zinc-400 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Safety Buffer Floor</span>
-                <div className="p-1 rounded-md bg-zinc-800/80 text-emerald-400">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>$500.00 Floor Preserved</span>
-                </div>
-                <p className="text-[10.5px] text-zinc-400 mt-0.5">
-                  Incoming receivable — user balance untouched
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bento Actions Bar */}
-          <div className="pt-2 flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                if (onSendInvoice) {
-                  onSendInvoice(data.invoiceId || "draft-inv", data.recipientEmail, data.amount);
-                }
-              }}
-              className="flex-1 h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-emerald-950/40"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Send PayPal Invoice</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onRejectOrder) onRejectOrder(data.invoiceId || "draft-inv");
-              }}
-              className="h-10 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-medium transition active:scale-95"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      </div>
+      <InvoiceBentoCard
+        data={card.invoiceApprovalData}
+        onSendInvoice={onSendInvoice}
+        onRejectOrder={onRejectOrder}
+      />
     );
   }
 
