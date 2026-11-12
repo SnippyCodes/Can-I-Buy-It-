@@ -445,3 +445,4 @@ export function ArtifactPanel({ view, onViewChange, onClose }: ArtifactPanelProp
 }
 
 export default ArtifactPanel;
+

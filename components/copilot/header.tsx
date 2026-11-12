@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Sparkles,
   ChevronDown,
@@ -9,6 +10,10 @@ import {
   Receipt,
   Check,
   ChevronRight,
+  ArrowLeft,
+  Home,
+  LayoutDashboard,
+  ShoppingBag,
 } from "lucide-react";
 import { SubAgentId } from "./types";
 import { CanvasIcon } from "./icons";
@@ -65,19 +70,59 @@ export function CopilotHeader({
   const CurrentIcon = currentMode.icon;
 
   return (
-    <header className="h-[52px] border-b border-zinc-800 bg-zinc-950 sticky top-0 z-20 select-none px-4 flex items-center justify-between gap-3 shrink-0">
-      {/* Left: Figma Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12px]">
-        <span className="shrink-0 text-zinc-500 font-medium">Copilot</span>
-        <ChevronRight className="w-3 h-3 shrink-0 text-zinc-700" />
-        <span className="truncate font-medium text-zinc-100 max-w-[180px] sm:max-w-xs md:max-w-md">
-          {threadTitle || "New chat"}
-        </span>
-      </nav>
+    <header className="h-[52px] border-b border-zinc-800 bg-zinc-950 sticky top-0 z-20 select-none px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-3 shrink-0">
+      {/* Left: Back to Home + Figma Breadcrumb */}
+      <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[7px] bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium transition shrink-0 group cursor-pointer shadow-sm"
+          title="Return to Home Landing Page"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white group-hover:-translate-x-0.5 transition-transform" />
+          <Home className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white" />
+          <span className="font-medium hidden sm:inline">Back to Home</span>
+          <span className="font-medium sm:hidden">Home</span>
+        </Link>
 
-      {/* Right: Security Status Pills, Mode Dropdown & Canvas Toggle */}
+        <span className="text-zinc-800 hidden sm:inline">|</span>
+
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12px]">
+          <Link
+            href="/"
+            className="hidden sm:inline shrink-0 text-zinc-500 hover:text-zinc-300 transition font-medium"
+          >
+            Home
+          </Link>
+          <ChevronRight className="hidden sm:inline w-3 h-3 shrink-0 text-zinc-700" />
+          <span className="shrink-0 text-zinc-500 font-medium">Copilot</span>
+          <ChevronRight className="w-3 h-3 shrink-0 text-zinc-700" />
+          <span className="truncate font-medium text-zinc-100 max-w-[120px] sm:max-w-xs md:max-w-md">
+            {threadTitle || "New chat"}
+          </span>
+        </nav>
+      </div>
+
+      {/* Right: Quick Links, Security Status Pills, Mode Dropdown & Canvas Toggle */}
       <div className="flex items-center gap-2 text-xs shrink-0">
-        <span className="hidden sm:inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-925 px-2.5 text-[11px] font-medium text-zinc-300">
+        <Link
+          href="/dashboard"
+          className="hidden xl:inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-925 px-2.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition"
+          title="Go to Merchant Dashboard"
+        >
+          <LayoutDashboard className="w-3 h-3 text-zinc-400" />
+          Dashboard
+        </Link>
+
+        <Link
+          href="/storefront"
+          className="hidden xl:inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-925 px-2.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition"
+          title="Go to Product Storefront"
+        >
+          <ShoppingBag className="w-3 h-3 text-zinc-400" />
+          Storefront
+        </Link>
+
+        <span className="hidden md:inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-925 px-2.5 text-[11px] font-medium text-zinc-300">
           <span className="size-1.5 rounded-full bg-zinc-400" />
           Security Guard: Dual HITL
         </span>

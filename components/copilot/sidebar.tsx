@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Pencil,
   Trash2,
@@ -9,6 +10,10 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  ArrowLeft,
+  Home,
+  LayoutDashboard,
+  ShoppingBag,
 } from "lucide-react";
 import { PlusIcon } from "./icons";
 import { HistorySession } from "./types";
@@ -30,8 +35,12 @@ interface SidebarProps {
 
 function WindowControls() {
   return (
-    <div className="flex items-center gap-2" aria-hidden="true">
-      <span className="size-3 rounded-full border border-black/20 bg-[#ff5f57]" />
+    <div className="flex items-center gap-2" aria-label="Window controls">
+      <Link
+        href="/"
+        className="size-3 rounded-full border border-black/20 bg-[#ff5f57] hover:opacity-80 transition inline-block"
+        title="Return to Home"
+      />
       <span className="size-3 rounded-full border border-black/20 bg-[#febc2e]" />
       <span className="size-3 rounded-full border border-black/20 bg-[#28c840]" />
     </div>
@@ -106,15 +115,29 @@ export function CopilotSidebar({
           </div>
 
           <div className="flex items-center justify-between gap-2 px-4 pb-4">
-            <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-zinc-50">
-              Guardian Copilot <span className="font-normal text-zinc-500">v2.4</span>
-            </p>
+            <Link
+              href="/"
+              className="truncate text-[13px] font-semibold tracking-[-0.01em] text-zinc-50 hover:text-white transition flex items-center gap-1.5"
+              title="Return to Home Landing Page"
+            >
+              <span>Guardian Copilot</span>
+              <span className="font-normal text-zinc-500">v2.4</span>
+            </Link>
             <span className="shrink-0 rounded-[5px] border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-px text-[10px] font-medium text-emerald-400">
               Sandbox
             </span>
           </div>
 
-          <div className="px-3">
+          <div className="px-3 space-y-1.5">
+            <Link
+              href="/"
+              className="flex h-8 w-full items-center gap-2 rounded-[7px] border border-zinc-800 bg-zinc-900 px-2.5 text-[12px] font-medium text-zinc-300 hover:bg-zinc-850 hover:text-white transition cursor-pointer group shadow-sm"
+              title="Return to Home Landing Page"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back to Home</span>
+            </Link>
+
             <button
               type="button"
               onClick={onNewChat}
@@ -126,7 +149,7 @@ export function CopilotSidebar({
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center py-3 gap-3">
+        <div className="flex flex-col items-center py-3 gap-2.5">
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -135,6 +158,13 @@ export function CopilotSidebar({
           >
             <PanelLeftOpen className="w-4 h-4" />
           </button>
+          <Link
+            href="/"
+            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-850 transition"
+            title="Back to Home"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
           <button
             type="button"
             onClick={onNewChat}
@@ -316,6 +346,28 @@ export function CopilotSidebar({
         </nav>
       ) : (
         <div className="flex-1" />
+      )}
+
+      {/* Quick Navigation Links */}
+      {!isCollapsed && (
+        <div className="px-3 py-2 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 hover:text-zinc-200 transition"
+            title="Go to Merchant Dashboard"
+          >
+            <LayoutDashboard className="w-3 h-3 text-zinc-400" />
+            Dashboard
+          </Link>
+          <Link
+            href="/storefront"
+            className="flex items-center gap-1.5 hover:text-zinc-200 transition"
+            title="Go to Product Storefront"
+          >
+            <ShoppingBag className="w-3 h-3 text-zinc-400" />
+            Storefront
+          </Link>
+        </div>
       )}
 
       {/* 3. User Profile Footer with Account Switcher */}

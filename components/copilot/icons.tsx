@@ -64,3 +64,4 @@ export const CanvasIcon = (p: IconProps) => (
     <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
   </Icon>
 );
+
