@@ -35,12 +35,31 @@ export default function SandboxPage() {
     }, 1500);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     setIsCheckingOut(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/paypal/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(price) || 100,
+          currency: "USD",
+          itemName: "Sandbox Evaluation Item",
+          payIn4: true,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.approveUrl) {
+          window.open(data.approveUrl, "_blank", "noopener,noreferrer");
+        }
+        setCheckoutComplete(true);
+      }
+    } catch (err) {
+      console.warn("Sandbox checkout order error:", err);
+    } finally {
       setIsCheckingOut(false);
-      setCheckoutComplete(true);
-    }, 2000);
+    }
   };
 
   const handleSendMessage = (e?: React.FormEvent) => {

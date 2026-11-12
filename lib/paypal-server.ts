@@ -32,7 +32,7 @@ if (!globalThis.__paypalTokenCache) {
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 5000
+  timeoutMs: number = 10000
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -114,6 +114,8 @@ export async function createPayPalOrder(params: {
   currency?: string;
   itemName?: string;
   payIn4?: boolean;
+  returnUrl?: string;
+  cancelUrl?: string;
 }): Promise<{
   orderId: string;
   status: string;
@@ -121,9 +123,23 @@ export async function createPayPalOrder(params: {
   payIn4: boolean;
   installmentAmount: number;
 }> {
-  const { amount, currency = "USD", itemName = "Product Purchase", payIn4 = false } = params;
+  const {
+    amount,
+    currency = "USD",
+    itemName = "Product Purchase",
+    payIn4 = false,
+    returnUrl,
+    cancelUrl,
+  } = params;
   const requestId = crypto.randomUUID();
   const installmentAmount = Math.round((amount / 4) * 100) / 100;
+
+  const defaultAppUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const effectiveReturnUrl = returnUrl || `${defaultAppUrl.replace(/\/$/, "")}/checkout/success`;
+  const effectiveCancelUrl = cancelUrl || `${defaultAppUrl.replace(/\/$/, "")}/checkout/cancel`;
 
   try {
     const token = await getPayPalAccessToken();
@@ -155,8 +171,8 @@ export async function createPayPalOrder(params: {
         brand_name: "PayPal Guardian Safe Commerce",
         landing_page: "NO_PREFERENCE",
         user_action: "PAY_NOW",
-        return_url: "http://localhost:3000/checkout/success",
-        cancel_url: "http://localhost:3000/checkout/cancel",
+        return_url: effectiveReturnUrl,
+        cancel_url: effectiveCancelUrl,
       },
     };
 
@@ -184,7 +200,7 @@ export async function createPayPalOrder(params: {
         },
         body: JSON.stringify(payload),
       },
-      6500
+      12000
     );
 
     if (!res.ok) {
@@ -252,7 +268,7 @@ export async function capturePayPalOrder(orderId: string): Promise<{
         "Content-Type": "application/json",
         "PayPal-Request-Id": requestId,
       },
-    }, 4500);
+    }, 15000);
 
     if (!res.ok) {
       const errorText = await res.text();

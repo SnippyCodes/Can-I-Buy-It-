@@ -11,12 +11,20 @@ export async function POST(req: NextRequest) {
 
   const { amount = 100, currency = "USD", itemName = "Product Purchase", payIn4 = false } = body;
 
+  const host = req.headers.get("host") || "localhost:3000";
+  const proto = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  const origin = req.headers.get("origin") || `${proto}://${host}`;
+  const returnUrl = `${origin.replace(/\/$/, "")}/checkout/success`;
+  const cancelUrl = `${origin.replace(/\/$/, "")}/checkout/cancel`;
+
   try {
     const order = await createPayPalOrder({
       amount: Number(amount) || 100,
       currency: String(currency || "USD"),
       itemName: String(itemName || "Product Purchase"),
       payIn4: Boolean(payIn4),
+      returnUrl,
+      cancelUrl,
     });
 
     return NextResponse.json(order);

@@ -691,6 +691,7 @@ export function ActionCardRenderer({
                       }).catch(() => {});
 
                       let targetOrderId = data.orderId;
+                      let targetApproveUrl = approveLink;
                       if (data.orderId.startsWith("act-ord-")) {
                         const createRes = await fetch("/api/paypal/orders", {
                           method: "POST",
@@ -705,6 +706,9 @@ export function ActionCardRenderer({
                         if (createRes.ok) {
                           const created = await createRes.json();
                           targetOrderId = created.orderId;
+                          if (created.approveUrl) {
+                            targetApproveUrl = created.approveUrl;
+                          }
                         }
                       }
 
@@ -719,10 +723,20 @@ export function ActionCardRenderer({
                         dispatchOrderFSM({ type: "CAPTURE_SUCCESS", captureId: resData.id || resData.capture_id || `cap-${targetOrderId.slice(-6)}` });
                         if (onAuthorizeOrder) onAuthorizeOrder(targetOrderId, data.price);
                       } else {
-                        dispatchOrderFSM({
-                          type: "CAPTURE_FAILURE",
-                          error: `PayPal capture API returned HTTP ${res.status}.`,
-                        });
+                        // PayPal REST v2 requires payer approval before capture.
+                        // Open official PayPal sandbox checkout for the buyer to authorize:
+                        if (targetApproveUrl) {
+                          window.open(targetApproveUrl, "_blank", "noopener,noreferrer");
+                          dispatchOrderFSM({
+                            type: "AUTHORIZE_AND_OPEN",
+                            approveUrl: targetApproveUrl,
+                          });
+                        } else {
+                          dispatchOrderFSM({
+                            type: "CAPTURE_FAILURE",
+                            error: `PayPal requires payer authorization before capture (HTTP ${res.status}).`,
+                          });
+                        }
                       }
                     } catch (err: unknown) {
                       dispatchOrderFSM({
