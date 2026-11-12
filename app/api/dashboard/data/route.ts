@@ -18,7 +18,12 @@ export async function GET(request: Request) {
   const commitments: Commitment[] = RECURRING_COMMITMENTS;
 
   // 1. Fetch live user account from backend
-  const backendBase = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+  const backendBase =
+    process.env.BACKEND_URL ||
+    process.env.FASTAPI_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://127.0.0.1:8000";
   try {
     const userRes = await fetch(`${backendBase}/api/auth/user/${userId}`, { cache: "no-store" });
     if (userRes.ok) {

@@ -33,7 +33,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS
+# Configure CORS with full support for onrender.com, localhost, and custom origins
 origins = [origin for origin in settings.CORS_ORIGINS if origin != "*"]
 if "http://localhost:3000" not in origins:
     origins.insert(0, "http://localhost:3000")
@@ -43,6 +43,7 @@ if "http://127.0.0.1:3000" not in origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

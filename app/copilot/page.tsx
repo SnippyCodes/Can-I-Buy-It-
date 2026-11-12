@@ -189,23 +189,49 @@ export default function CopilotPage() {
         );
       }
 
-      // Connect directly to FastAPI multi-agent backend via /api/py/copilot/chat
+      // Connect to FastAPI multi-agent backend with dual-path resilience
       try {
-        const res = await fetch("/api/py/copilot/chat?stream=true", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "text/event-stream, application/json",
-          },
-          body: JSON.stringify({
-            message: userText,
-            active_agent: activeAgentId,
-            thread_id: currentId || "thread-session-1",
-            user_id: activeAccount.user_id,
-          }),
+        let res: Response | null = null;
+        const payload = JSON.stringify({
+          message: userText,
+          active_agent: activeAgentId,
+          thread_id: currentId || "thread-session-1",
+          user_id: activeAccount.user_id,
         });
 
-        if (!res.ok) throw new Error(`Agent backend responded with HTTP ${res.status}`);
+        // 1. Primary path: Next.js rewrite /api/py/copilot/chat
+        try {
+          res = await fetch("/api/py/copilot/chat?stream=true", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream, application/json",
+            },
+            body: payload,
+          });
+        } catch (rewriteErr) {
+          console.warn("Direct rewrite path failed, trying server proxy fallback...", rewriteErr);
+        }
+
+        // 2. Secondary path: Next.js API route proxy /api/copilot/chat
+        if (!res || !res.ok) {
+          try {
+            res = await fetch("/api/copilot/chat", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "text/event-stream, application/json",
+              },
+              body: payload,
+            });
+          } catch (proxyErr) {
+            console.warn("Server proxy fallback also failed:", proxyErr);
+          }
+        }
+
+        if (!res || !res.ok) {
+          throw new Error(`Agent backend unreachable (HTTP ${res ? res.status : "connection refused"})`);
+        }
 
         const contentType = res.headers.get("content-type") || "";
         let data: any = {};
